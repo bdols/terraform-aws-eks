@@ -31,11 +31,6 @@ provider "helm" {
       args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
-  registry {
-    url      = "oci://public.ecr.aws/"
-    username = data.aws_ecrpublic_authorization_token.token.user_name
-    password = data.aws_ecrpublic_authorization_token.token.password
-  }
 }
 
 provider "kubectl" {
@@ -165,12 +160,8 @@ module "karpenter" {
   cluster_name           = module.eks.cluster_name
   irsa_oidc_provider_arn = module.eks.oidc_provider_arn
 
-  # add SSM access for debugging
-  iam_role_additional_policies = [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" ]
-
-  policies = {
-    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  }
+  # uncomment to allow for console access via SSM session manager to debug karpenter startup
+  #iam_role_additional_policies = [ "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore" ]
 
   tags = local.tags
 }
@@ -181,8 +172,10 @@ resource "helm_release" "karpenter" {
 
   name                = "karpenter"
   repository          = "oci://public.ecr.aws/karpenter"
+  repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+  repository_password = data.aws_ecrpublic_authorization_token.token.password
   chart               = "karpenter"
-  version             = "v0.27.3"
+  version             = "v0.27.5"
 
   set {
     name  = "settings.aws.clusterName"
